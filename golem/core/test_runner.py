@@ -63,8 +63,31 @@ def test_runner(workspace, project, test_name, test_data, driver,
     test_module = None
     
     try:
-        test_module = importlib.import_module(
-            'projects.{0}.tests.{1}'.format(project, test_name))
+        import os
+        import js2py
+        #import jiphy
+        #from pyjsparser import PyJsParser
+        #p = PyJsParser()
+        
+
+        # import the test module
+        with open(os.path.join(workspace, 'projects', project, 'tests', '{}.js'.format(test_name))) as f:
+            file_contents = f.read()
+
+        #file_contents = p.parse(file_contents)
+        #for a in file_contents['body']:
+        #    print(a)
+        #    print()
+        
+        test_module = js2py.eval_js(file_contents)
+
+        print(test_module)
+
+        # import sys
+        # sys.exit()
+
+        # test_module = importlib.import_module(
+        #     'projects.{0}.tests.{1}'.format(project, test_name))
 
         # import the page objects into the test module
         for page in test_module.pages:

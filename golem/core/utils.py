@@ -336,9 +336,12 @@ def get_timestamp():
 def test_case_exists(workspace, project, full_test_case_name):
     test, parents = separate_file_from_parents(full_test_case_name)
     path = os.path.join(workspace, 'projects', project, 'tests',
-                        os.sep.join(parents), '{}.py'.format(test))
-    test_exists = os.path.isfile(path)
-    return test_exists
+                        os.sep.join(parents))
+    pypath = os.path.join(path, '{}.py'.format(test))
+    jspath = os.path.join(path, '{}.js'.format(test))
+    py_test_exists = os.path.isfile(pypath)
+    js_test_exists = os.path.isfile(jspath)
+    return py_test_exists or js_test_exists
 
 
 def test_suite_exists(workspace, project, full_test_suite_name):
