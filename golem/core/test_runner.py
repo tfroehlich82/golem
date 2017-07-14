@@ -79,12 +79,17 @@ def test_runner(workspace, project, test_name, test_data, driver,
         #    print(a)
         #    print()
         
+        print(file_contents)
+
         test_module = js2py.eval_js(file_contents)
+        translation = js2py.translate_js(file_contents)
 
         print(test_module)
 
-        # import sys
-        # sys.exit()
+        print(translation)
+
+        import sys
+        sys.exit()
 
         # test_module = importlib.import_module(
         #     'projects.{0}.tests.{1}'.format(project, test_name))
