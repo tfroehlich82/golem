@@ -1,27 +1,14 @@
 """Main point of entrance to the application"""
+import sys
 
-import argparse
-from .core import test_execution
-from .core.settings_manager import get_global_settings
-from . import commands
+from .cli import argument_parser, commands
 
 
-def execute_from_command_line(root_path):
-    parser = argparse.ArgumentParser(
-        description='run test case, test suite or start the Golem GUI tool',
-        usage='golem.py run project test_case|test_suite|directory',
-        add_help=False
-    )
-    sub_parsers = parser.add_subparsers(dest="main_action")
-    commands.init_cli(parser, sub_parsers)
-    args = parser.parse_args()
+def execute_from_command_line(testdir):
+    # deactivate .pyc extention file generation
+    sys.dont_write_bytecode = True
+    sys.path.insert(0, '')
 
-    # set test_execution values
-    test_execution.root_path = root_path
-    test_execution.settings = get_global_settings()
+    args = argument_parser.get_parser().parse_args()
 
-    import golem.core
-    golem.core.temp = test_execution.settings
-
-    if args.main_action:
-        commands.run(args.main_action, test_execution, args)
+    commands.command_dispatcher(args, testdir)

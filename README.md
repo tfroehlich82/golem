@@ -1,98 +1,65 @@
-Golem - Test Automation Framework 
-[![Build Status](https://travis-ci.org/lucianopuccio/golem.svg?branch=master)](https://travis-ci.org/lucianopuccio/golem)
-[![Documentation Status](http://readthedocs.org/projects/golem-framework/badge/?version=latest)](http://golem-framework.readthedocs.io/en/latest/?badge=latest)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-==================================================
+# Golem - Test Automation
 
+[![Build Status](https://travis-ci.com/golemhq/golem.svg?branch=master)](https://travis-ci.com/golemhq/golem)
+[![Documentation Status](https://readthedocs.org/projects/golem-framework/badge/?version=latest)](https://golem-framework.readthedocs.io/en/latest/?badge=latest)
+[![Join the chat at https://gitter.im/golem-framework/golem](https://badges.gitter.im/golem-framework/golem.svg)](https://gitter.im/golem-framework/golem?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Intro
---------------------------------------
+Golem is a test framework and a complete tool for browser automation.
+Tests can be written with code in Python, codeless using the web IDE, or both.
 
->Automate end to end tests in minutes, not hours.
-
-
-Golem is a complete test automation tool and framework for end-to-end testing. It creates powerful, robust and maintainable test suites, yet it is easy to pick up and learn even without a lot of programming knowledge. It is based on Selenium Webdriver and it can be extended using Python.
-
-**It can:**
-* Use the Page Object pattern
-* Write tests with multi data sets (data-driven)
-* Run tests in parallel.
-* Test APIs
-* Run tests remotely (Selenium Grid or a cloud testing provider)
-* It can be executed from Jenkins or any other CI tool 
-
-
-**It has:**
-* A complete GUI module (a web application) to write and execute tests
-* A reporting engine and a web reports module
-* An interactive console
-
-
-***
-
-## Contents
-
-* [Screen Captures](#screen-captures)
-* [Pre-requisites](#pre-requisites)
-* [Installation](#installation)
-* [Quick Start](#quick-start)
-* [Documentation](#documentation)
-* [Example Projects](#documentation)
-* [Roadmap](#roadmap)
-* [License](#license)
-
-
-Screen Captures
---------------------------------------
-
-**Project Dashboard**
+**Tests can be written with the web app**
 <p align="center">
-    <img width="700" style="border: 1px solid #d3d3d3; padding: 5px" src="./images/project-dashboard.png" />
+    <img width="600" src="./images/test-case.png" />
 </p>
 
-**Test Editor**
+**But, they are still Python code**
 <p align="center">
-    <img width="700" style="border: 1px solid #d3d3d3; padding: 5px" src="./images/test-case.png" />
+    <img width="600" src="./images/example-test-code.png" />
 </p>
 
+## Batteries Included
 
-**Test as Pure Python Code**
-<p align="center">
-    <img width="700" style="border: 1px solid #d3d3d3; padding: 5px" src="./images/example-test-code.png" />
-</p>
+* Multi-user web IDE
+* Extended classes for [WebDriver](https://golem-framework.readthedocs.io/en/latest/golem_public_api/webdriver-class.html) and [WebElement](https://golem-framework.readthedocs.io/en/latest/golem_public_api/webelement-class.html)
+* More than 200 self documenting [Actions](https://golem-framework.readthedocs.io/en/latest/golem-actions.html)
+* [Webdriver-manager](https://github.com/golemhq/webdriver-manager) utility
+* Built in parallel test support
+* Reporting engine
 
+<br>
+
+**Golem is still in beta!**. Read the changelog before upgrading.
+
+<br>
+
+## Screen Captures
 
 **Report Dashboard**
 <p align="center">
-    <img width="700" style="border: 1px solid #d3d3d3; padding: 5px" src="./images/report-dashboard.png" />
+    <img width="500" src="./images/report-dashboard.png" />
 </p>
 
 **Execution Report**
 <p align="center">
-    <img width="700" style="border: 1px solid #d3d3d3; padding: 5px" src="./images/execution-report.png" />
+    <img width="500" src="./images/execution-report.png" />
 </p>
 
+**Test Execution Detail**
+<p align="center">
+    <img width="500" src="./images/test-execution-detail.png" />
+</p>
 
-Pre-requisites
---------------------------------------
+## Installation
 
-Basic knowledge of Selenium Webdriver is required. Check out [this docs](golem-framework.readthedocs.io/en/latest/installation.html) first.
-
-
-Installation
---------------------------------------
-
-Golem works with Python 3.4+
+Golem works with Python 3.5+
 
 ```
 pip install golem-framework
 ```
 
-Read the full installation guide here: [http://golem-framework.readthedocs.io/en/latest/installation.html](golem-framework.readthedocs.io/en/latest/installation.html)
+Read the full installation guide here: [https://golem-framework.readthedocs.io/en/latest/installation.html](https://golem-framework.readthedocs.io/en/latest/installation.html)
 
-
-Quick Start
---------------------------------------
+## Quick Start
 
 **Create a test directory anywhere in your machine**
 
@@ -100,45 +67,55 @@ Quick Start
 golem-admin createdirectory <test_directory>
 ```
 
-**Download the latest webdriver executables** 
-Note: Golem needs the latest webdrivers in order to work, by default, it will pick up the executables placed in the <test_directory>/drivers directory, this setting can be overriden from the settings.
-The latests versions of the webdrivers can be found here:
-* Chrome: (https://sites.google.com/a/chromium.org/chromedriver/)
-* Firefox: (https://github.com/mozilla/geckodriver/releases)
+**Download the latest webdriver executables**
 
-For more information check [this page](http://golem-framework.readthedocs.io/en/latest/web-drivers.html) of the documentation.
+```
+cd <test_directory>
+webdriver-manager update
+``` 
+
+Webdriver executables are downloaded to the *drivers* folder. For more information check [this page](https://golem-framework.readthedocs.io/en/latest/browsers.html) of the documentation.
 
 **Start the Web Module**
 
 ```
-cd <test_directory>
-python golem.py gui
+golem gui
 ```
-
 
 The Web Module can be accessed at http://localhost:5000/
 
 By default, the following user is available: username: *admin* / password: *admin*
 
+**Run a Test From Console**
 
-Documentation
---------------------------------------
+```
+golem run <project> <test>
+golem run <project> <suite>
+```
 
-Read the full documentation here: [http://golem-framework.readthedocs.io/](http://golem-framework.readthedocs.io/)
+Args:
 
+* -b | --browsers: a list of browsers, by default use defined in settings.json or Chrome
+* -p | --processes: run in parallel, default 1 (not parallel)
+* -e | --environments: a list of environments, the default is none
+* -t | --tags: filter tests by tags
 
-Example Projects
---------------------------------------
+## Documentation
 
-Here is a repo with example working projects usign Golem: [https://github.com/lucianopuccio/golem-demo](https://github.com/lucianopuccio/golem-demo)
+[https://golem-framework.readthedocs.io/](https://golem-framework.readthedocs.io/)
 
-Roadmap
---------------------------------------
+## Questions
 
-Integrate with Appium for mobile testing
+If you have any question please use the [Gitter channel](https://gitter.im/golem-framework/golem).
 
+## Contributing
 
-License
---------------------------------------
+If you found a bug or want to contribute code please read the [contributing guide](https://github.com/golemhq/golem/blob/master/CONTRIBUTING.md).
+
+## License
 
 [MIT](https://tldrlegal.com/license/mit-license)
+
+## Credits
+
+Logo based on ["to believe"](https://www.toicon.com/icons/feather_believe) by Shannon E Thomas, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)

@@ -1,17 +1,17 @@
-"""A CLI admin script used to generate the initial 'test directory that
+"""A CLI admin script used to generate the initial test directory that
 contains the projects and all the required fields for Golem to
-work. This is a is directory independent script.
+work.
 """
-import argparse
-from .. import commands
+from golem.cli import argument_parser, commands, messages
 
 
 def main():
-    parser = argparse.ArgumentParser(add_help=False)
-    sub_parsers = parser.add_subparsers(dest="main_action")
-
-    commands.init_admin_cli(sub_parsers, sub_parsers)
+    parser = argument_parser.get_admin_parser()
     args = parser.parse_args()
-
-    if args.main_action:
-        commands.run_admin(args.main_action, args)
+    if args.help:
+        print(messages.ADMIN_USAGE_MSG)
+    elif args.command:
+        if args.command == 'createdirectory':
+            commands.createdirectory_command(args.name, args.no_confirm)
+    else:
+        print(messages.ADMIN_USAGE_MSG)

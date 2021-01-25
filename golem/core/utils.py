@@ -1,286 +1,13 @@
-import csv
-import imp
+"""Helper general purpose functions"""
+import glob
 import importlib
-import shutil
 import json
 import os
-import sys
-import uuid
-
+import re
+import traceback
+import types
 from datetime import datetime
-
-import golem
-from golem.core import settings_manager
-
-
-# def _generate_dict_from_file_structure(full_path):
-#     """Generates a dictionary with the preserved structure of a given
-#     directory (with its files and subdirectories).
-#     Files are stored in tuples, with the first element being the name
-#     of the file without its extention and the second element
-#     the dotted path to the file.
-
-#     For example, given the following directory:
-#     test/
-#          subdir1/
-#                  subdir2/
-#                          file5
-#                  file3
-#                  file4
-
-#          file1
-#          file2
-
-#     The result will be:
-#     test = {
-#         'subdir1': {
-#             'subdir2': {
-#                 'subdir2': {
-#                     ('file5', 'subdir1.subdir2.file5'): None,
-#                 },
-#                 ('file3', 'subdir1.file3'): None,
-#                 ('file4', 'subdir1.file4'): None,
-#         },
-#         ('file1', 'file1'): None,
-#         ('file2', 'file2'): None,
-#     }
-#     """
-#     root_dir = os.path.basename(os.path.normpath(full_path))
-
-#     dir_tree = OrderedDict()
-#     start = full_path.rfind(os.sep) + 1
-
-#     for path, dirs, files in os.walk(full_path):
-#         folders = path[start:].split(os.sep)
-#         # remove __init__.py from list of files
-#         if '__init__.py' in files:
-#             files.remove('__init__.py')
-#         # mac OS creates '.DS_store' files
-#         if '.DS_Store' in files:
-#             files.remove('.DS_Store')
-#         # remove files that are not .py extension and remove extensions
-#         filenames = [x[:-3] for x in files if x.split('.')[1] == 'py']
-#         filename_filepath_duple_list = []
-#         # remove root_dir form folders
-#         folders_without_root_dir = [x for x in folders if x != root_dir]
-#         for f in filenames:
-#             file_with_dotted_path = '.'.join(folders_without_root_dir + [f])
-#             filename_filepath_duple_list.append((f, file_with_dotted_path))
-#         subdir_dict = OrderedDict.fromkeys(filename_filepath_duple_list)
-#         parent = reduce(OrderedDict.get, folders[:-1], dir_tree)
-#         parent.update({folders[-1]: subdir_dict})
-
-#         # this code is added to give support to python 2.7
-#         # support for python 2.7 has been dropped
-#         # which does not have move_to_end method
-#         # if not hasattr(OrderedDict, 'move_to_end'):
-#         #     def move_to_end(self, key, last=True):
-#         #         link_prev, link_next, key = link = self._OrderedDict__map[key]
-#         #         link_prev[1] = link_next
-#         #         link_next[0] = link_prev
-#         #         root = self._OrderedDict__root
-#         #         if last:
-#         #             last = root[0]
-#         #             link[0] = last
-#         #             link[1] = root
-#         #             last[1] = root[0] = link
-#         #     OrderedDict.move_to_end = move_to_end
-#         # end of python 2.7 support code
-
-#         parent.move_to_end(folders[-1], last=False)
-#     dir_tree = dir_tree[root_dir]
-#     return dir_tree
-
-
-def _directory_element(elem_type, name, full_path, dot_path=None):
-    element = {
-        'type': elem_type,
-        'name': name,
-        'full_path': full_path,
-        'dot_path': dot_path,
-        'sub_elements': []
-    }
-    return element
-
-
-def _generate_dict_from_file_structure(full_path, original_path=None):
-    root_dir_name = os.path.basename(os.path.normpath(full_path))
-    if not original_path:
-        original_path = full_path
-    element = _directory_element('directory', root_dir_name, full_path)
-
-    all_sub_elements = os.listdir(full_path)
-    files = []
-    directories = []
-    for elem in all_sub_elements:
-        if os.path.isdir(os.path.join(full_path, elem)):
-            directories.append(elem)
-        else:
-            if not elem in ['__init__.py', '.DS_Store']:
-                files.append(os.path.splitext(elem)[0])
-    for directory in directories:
-        _ = _generate_dict_from_file_structure(os.path.join(full_path, directory),
-                                               original_path)
-        element['sub_elements'].append(_)
-    for filename in files:
-        full_file_path = os.path.join(full_path, filename)
-
-        rel_file_path = os.path.relpath(full_file_path, original_path)
-        dot_file_path = rel_file_path.replace('/', '.')
-        file_element = _directory_element('file', filename, full_file_path, dot_file_path)
-        element['sub_elements'].append(file_element)
-
-    return element
-
-
-def get_test_cases(workspace, project):
-    path = os.path.join(workspace, 'projects', project, 'tests')
-    test_cases = _generate_dict_from_file_structure(path)
-    return test_cases
-
-
-def get_pages(workspace, project):
-    path = os.path.join(workspace, 'projects', project, 'pages')
-    pages = _generate_dict_from_file_structure(path)
-    return pages
-
-
-def get_suites(workspace, project):
-    path = os.path.join(workspace, 'projects', project, 'suites')
-    suites = _generate_dict_from_file_structure(path)
-    return suites
-
-
-def get_projects(workspace):
-    projects = []
-    path = os.path.join(workspace, 'projects')
-    projects = next(os.walk(path))[1]
-    return projects
-
-
-def project_exists(workspace, project):
-    return project in get_projects(workspace)
-
-
-def get_files_in_directory_dot_path(base_path):
-    '''
-    generate a list of all the files inside a directory and
-    subdirectories with the relative path as a dotted string.
-    for example, given:
-    C:/base_dir/dir/sub_dir/file.py
-    get_files_in_directory_dotted_path('C:/base_dir/'):
-    >['dir.sub_dir.file']
-    '''
-    all_files = []
-    files_with_dotted_path = []
-    for path, subdirs, files in os.walk(base_path):
-        for name in files:
-            if name not in ['__init__.py', '.DS_Store']:
-                filepath = os.path.join(path, os.path.splitext(name)[0])
-                all_files.append(filepath)
-    for file in all_files:
-        rel_path_as_list = file.replace(base_path, '').split(os.sep)
-        rel_path_as_list = [x for x in rel_path_as_list if x != '']
-        files_with_dotted_path.append('.'.join(rel_path_as_list))
-    return files_with_dotted_path
-
-
-def get_test_data(workspace, project, full_test_case_name):
-    '''Test cases can have multiple sets of data
-    This method generates a list of data objects'''
-    data_list = []
-
-    class Data:
-        def __init__(self):
-            pass
-
-    # check if CSV file == test case name exists
-    test, parents = separate_file_from_parents(full_test_case_name)
-    data_file_path = os.path.join(workspace, 'projects', project,
-                                  'data', os.sep.join(parents),
-                                  '{}.csv'.format(test))
-    if not os.path.exists(data_file_path):
-        print('Warning: No data file found for {}'.format(full_test_case_name))
-    else:
-        with open(data_file_path, 'r', encoding='utf8') as csv_file:
-            dict_reader = csv.DictReader(csv_file)
-            for data_set in dict_reader:
-                new_data_obj = Data()
-                for key, value in data_set.items():
-                    setattr(new_data_obj, key, value)
-                data_list.append(new_data_obj)
-
-    if not data_list:
-        data_list.append(Data())
-    return data_list
-
-
-def get_test_data_dict_list(workspace, projects, full_test_case_name):
-    data_dict_list = []
-    data_list = get_test_data(workspace, projects, full_test_case_name)
-    for data in data_list:
-        data_dict_list.append(vars(data))
-    return data_dict_list
-
-
-def get_suite_module(workspace, project, suite):
-    module_name = 'projects.{0}.suites.{1}'.format(project, suite)
-    suite_module = importlib.import_module(module_name, package=None)
-    return suite_module
-
-
-def get_suite_test_cases(workspace, project, suite):
-    '''Return a list with all the test cases of a given suite'''
-    tests = []
-    module_name = 'projects.{0}.suites.{1}'.format(project, suite)
-    suite_module = importlib.import_module(module_name, package=None)
-    if '*' in suite_module.tests:
-        path = os.path.join(workspace, 'projects', project, 'tests')
-        tests = get_files_in_directory_dot_path(path)
-    else:
-        for test in suite_module.tests:
-            if test[-1] == '*':
-                this_dir = os.path.join(test[:-2])
-                path = os.path.join(workspace, 'projects', project,
-                                    'tests', this_dir)
-                this_dir_tests = get_files_in_directory_dot_path(path)
-                this_dir_tests = ['{}.{}'.format(this_dir, x) for x in this_dir_tests]
-                tests = tests + this_dir_tests
-            else:
-                tests.append(test)
-    return tests
-
-
-def get_directory_suite_test_cases(workspace, project, suite):
-    '''Return a list with all the test cases of a given directory suite
-    a directory suite is a directory inside "/test_cases" folder'''
-    tests = list()
-
-    path = os.path.join(workspace, 'projects', project, 'tests', suite)
-    tests = get_files_in_directory_dot_path(path)
-    tests = ['.'.join((suite, x)) for x in tests]
-
-    return tests
-
-
-def get_suite_amount_of_workers(workspace, project, suite):
-    amount = 1
-    suite_module = importlib.import_module('projects.{0}.suites.{1}'.format(project, suite),
-                                           package=None)
-    if hasattr(suite_module, 'workers'):
-        amount = suite_module.workers
-
-    return amount
-
-
-def get_suite_browsers(workspace, project, suite):
-    browsers = []
-    suite_module = importlib.import_module('projects.{0}.suites.{1}'.format(project, suite),
-                                           package=None)
-    if hasattr(suite_module, 'browsers'):
-        browsers = suite_module.browsers
-
-    return browsers
+from distutils.version import StrictVersion
 
 
 def get_timestamp():
@@ -296,20 +23,19 @@ def get_date_from_timestamp(timestamp):
     return date
 
 
-def test_case_exists(workspace, project, full_test_case_name):
-    test, parents = separate_file_from_parents(full_test_case_name)
-    path = os.path.join(workspace, 'projects', project, 'tests',
-                        os.sep.join(parents), '{}.py'.format(test))
-    test_exists = os.path.isfile(path)
-    return test_exists
+def get_date_time_from_timestamp(timestamp):
+    """Get the date time from a timestamp.
 
-
-def test_suite_exists(workspace, project, full_test_suite_name):
-    suite, parents = separate_file_from_parents(full_test_suite_name)
-    path = os.path.join(workspace, 'projects', project, 'suites',
-                        os.sep.join(parents), '{}.py'.format(suite))
-    suite_exists = os.path.isfile(path)
-    return suite_exists
+    The timestamp must have the following format:
+    'year.month.day.hour.minutes'
+    Example:
+    '2017.12.20.10.31' -> '2017/12/20 10:31'
+    """
+    date_time_string = timestamp
+    sp = timestamp.split('.')
+    if len(sp) >= 5:
+        date_time_string = '{0}/{1}/{2} {3}:{4}'.format(sp[0], sp[1], sp[2], sp[3], sp[4])
+    return date_time_string
 
 
 def display_tree_structure_command_line(structure, lvl=0):
@@ -329,224 +55,158 @@ def separate_file_from_parents(full_filename):
     splitted = full_filename.split('.')
     file = splitted.pop()
     parents = splitted
-    return (file, parents)
+    return file, parents
 
 
-def is_first_level_directory(workspace, project, directory):
-    path = os.path.join(workspace, 'projects', project, 'tests', directory)
-    return os.path.isdir(path)
-
-
-def generate_page_object_module(project, parent_module, full_path, page_path_list):
-    if len(page_path_list) > 1:
-        if not hasattr(parent_module, page_path_list[0]):
-            new_module = imp.new_module(page_path_list[0])
-            setattr(parent_module, page_path_list[0], new_module)
-        else:
-            new_module = getattr(parent_module, page_path_list[0])
-        page_path_list.pop(0)
-        new_module = generate_page_object_module(project, new_module, full_path, page_path_list)
-        setattr(parent_module, page_path_list[0], new_module)
+def choose_browser_by_precedence(cli_browsers=None, suite_browsers=None,
+                                 settings_default_browser=None):
+    """ Defines which browser(s) to use by order of precedence
+    The order is the following:
+    1. browsers defined by CLI
+    2. browsers defined inside a suite
+    3. 'default_driver' setting
+    4. chrome
+    """
+    if cli_browsers:
+        browsers = cli_browsers
+    elif suite_browsers:
+        browsers = suite_browsers
+    elif settings_default_browser:
+        browsers = [settings_default_browser]
     else:
-        imported_module = importlib.import_module('projects.{}.pages.{}'
-                                                  .format(project, full_path))
-        setattr(parent_module, page_path_list[0], imported_module)
-    return parent_module
+        browsers = ['chrome']  # default default
+    return browsers
 
 
-def create_new_directory(path_list=None, path=None, add_init=False):
-    if path_list:
-        path = os.sep.join(path_list)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    if add_init:
-        # add __init__.py file to make the new directory a python package
-        init_path = os.path.join(path, '__init__.py')
-        open(init_path, 'a').close()
-
-
-def create_new_project(workspace, project):
-    create_new_directory(path_list=[workspace, 'projects', project], add_init=True)
-    create_new_directory(path_list=[workspace, 'projects', project, 'data'], add_init=False)
-    create_new_directory(path_list=[workspace, 'projects', project, 'pages'], add_init=True)
-    create_new_directory(path_list=[workspace, 'projects', project, 'reports'], add_init=False)
-    create_new_directory(path_list=[workspace, 'projects', project, 'tests'], add_init=True)
-    create_new_directory(path_list=[workspace, 'projects', project, 'suites'], add_init=True)
-    extend_path = os.path.join(workspace, 'projects', project, 'extend.py')
-    open(extend_path, 'a').close()
-
-    settings_path = os.path.join(workspace, 'projects', project, 'settings.json')
-    with open(settings_path, 'a') as settings_file:
-        settings_file.write(settings_manager.reduced_settings_file_content())
-
-
-def create_demo_project(workspace):
-    create_new_directory(path_list=[workspace, 'projects', 'demo'])
-    source = os.path.join(golem.__path__[0], 'templates/demo_project')
-    destination = os.path.join(workspace, 'projects', 'demo')
-    shutil.copytree(source, destination)
-
-
-def create_test_dir(workspace):
-    create_new_directory(path_list=[workspace], add_init=True)
-    create_new_directory(path_list=[workspace, 'projects'], add_init=True)
-    create_new_directory(path_list=[workspace, 'drivers'], add_init=False)
-
-    # copy drivers from golem/bin/drivers to test_dir/drivers
-    pkgdir = sys.modules['golem'].__path__[0]
-    #sourcepath = os.path.join(pkgdir, 'bin', 'drivers')
-    #destination_path = os.path.join(workspace, 'drivers')
-    #shutil.copytree(sourcepath, destination_path)
-
-    golem_py_content = ("import os\n"
-                        "import sys\n"
-                        "\n\n"
-                        "# deactivate .pyc extention file generation\n"
-                        "sys.dont_write_bytecode = True\n"
-                        "\n\n"
-                        "if __name__ == '__main__':\n"
-                        "    del sys.path[0]\n"
-                        "    sys.path.append('')\n\n"
-                        "    from golem.main import execute_from_command_line\n\n"
-                        "    execute_from_command_line(os.getcwd())\n")
-    golem_py_path = os.path.join(workspace, 'golem.py')
-    with open(golem_py_path, 'a') as golem_py_file:
-        golem_py_file.write(golem_py_content)
-
-    settings_path = os.path.join(workspace, 'settings.json')
-    with open(settings_path, 'a') as settings_file:
-        settings_file.write(settings_manager.settings_file_content())
-
-    users_path = os.path.join(workspace, 'users.json')
-    open(users_path, 'a').close()
-    create_user(workspace, 'admin', 'admin', True, ["*"], ["*"])
-
-    print('New golem test directory created at {}'.format(workspace))
-    print('Use credentials to access the GUI module:')
-    print('user: admin')
-    print('password: admin')
-
-
-def create_user(workspace, username, password, is_admin, projects, reports):
-    errors = []
-    with open(os.path.join(workspace, 'users.json')) as users_file:
+# TODO
+def load_json_from_file(filepath, ignore_failure=False, default=None):
+    json_data = default
+    with open(filepath, encoding='utf-8') as json_file:
         try:
-            user_data = json.load(users_file)
-        except:
-            user_data = []
-    for user in user_data:
-        if user['username'] == username:
-            errors.append('username {} already exists'.format(username))
-            break
-    if not errors:
-        new_user = {
-            'id': str(uuid.uuid4())[:8],
-            'username': username,
-            'password': password,
-            'is_admin': is_admin,
-            'gui_projects': projects,
-            'report_projects': reports
-        }
-        user_data.append(new_user)
-        with open(os.path.join(workspace, 'users.json'), 'w') as users_file:
-            json.dump(user_data, users_file, indent=4)
-
-    return errors
+            contents = json_file.read()
+            if len(contents.strip()):
+                json_data = json.loads(contents)
+        except Exception as e:
+            msg = 'There was an error parsing file {}'.format(filepath)
+            print(msg)
+            print(traceback.format_exc())
+            if not ignore_failure:
+                raise Exception(msg).with_traceback(e.__traceback__)
+    return json_data
 
 
-def code_syntax_is_valid(code):
-    error = ''
+def import_module(path):
+    """Import a Python module from a given path"""
+    mod = None
+    error = None
+    module_dir, module_file = os.path.split(path)
+    module_name, module_ext = os.path.splitext(module_file)
     try:
-        compile(code, '<string>', 'exec')
-    except Exception as e:
-        error = 'syntax error'
-    return error
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        _mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_mod)
+        mod = _mod
+    except:
+        error = traceback.format_exc(limit=0)
+    return mod, error
 
 
-def delete_element(workspace, project, element_type, full_path):
-    if element_type == 'test':
-        folder = 'tests'
-    elif element_type == 'page':
-        folder = 'pages'
-    elif element_type == 'suite':
-        folder = 'suites'
+def module_local_public_functions(module):
+    """Get a list of function names defined in a module.
+    Ignores functions that start with `_` and functions
+    imported from other modules.
+    """
+    local_functions = []
+    module_name = module.__name__
+    for name in dir(module):
+        if not name.startswith('_'):
+            attr = getattr(module, name)
+            if isinstance(attr, types.FunctionType) and attr.__module__ == module_name:
+                local_functions.append(name)
+    return local_functions
+
+
+def extract_version_from_webdriver_filename(filename):
+    """Extract version from webdriver filename.
+    
+    Expects a file in the format: `filename_1.2` or `filename_1.2.exe`
+    The extracted version must conform with pep-386
+    If a valid version is not found it returns '0.0'
+    """
+    version = '0.0'
+    if '_' in filename:
+        components = filename.replace('.exe', '').split('_')
+        if len(components) > 1:
+            parsed_version = components[-1]
+            try:
+                StrictVersion(parsed_version)
+                version = parsed_version
+            except:
+                pass
+    return version
+
+
+def match_latest_executable_path(glob_path, testdir):
+    """Returns the absolute path to the webdriver executable
+    with the highest version given a path with glob pattern.
+    """
+    found_files = []
+    glob_path = os.path.normpath(glob_path)
+    if not os.path.isabs(glob_path):
+        glob_path = os.path.join(testdir, glob_path)
+    # Note: recursive=True arg is not supported
+    # in Python 3.4, so '**' wildcard is not supported
+    matched_files = [x for x in glob.glob(glob_path) if os.path.isfile(x)]
+    for matched_file in matched_files:
+        found_files.append((matched_file, extract_version_from_webdriver_filename(matched_file)))
+    if found_files:
+        highest_version = sorted(found_files, key=lambda tup: StrictVersion(tup[1]), reverse=True)
+        return highest_version[0][0]
     else:
-        raise Exception('Incorrect element type')
-
-    errors = []
-    path = os.path.join(workspace, 'projects', project, folder,
-                        full_path.replace('.', os.sep) + '.py')
-    if not os.path.exists(path):
-        errors.append('File {} does not exist'.format(full_path))
-    else:
-        try:
-            os.remove(path)
-        except:
-            errors.append('There was an error removing file {}'.format(full_path))
-
-    if element_type == 'test':
-        data_path = os.path.join(workspace, 'projects', project, 'data',
-                                 full_path.replace('.', os.sep) + '.csv')
-        try:
-            os.remove(data_path)
-        except:
-            pass
-
-    return errors
+        return None
 
 
-def duplicate_element(workspace, project, element_type, original_file_dot_path,
-                      new_file_dot_path):
-    errors = []
-    if element_type == 'test':
-        folder = 'tests'
-    elif element_type == 'page':
-        folder = 'pages'
-    elif element_type == 'suite':
-        folder = 'suites'
-    else:
-        errors.append('Element type is incorrect')
-    if not errors:
-        if original_file_dot_path == new_file_dot_path:
-            errors.append('New file cannot be the same as the original')
-        else:
-
-            root_path = os.path.join(workspace, 'projects', project)
-            original_file_rel_path = original_file_dot_path.replace('.', os.sep) + '.py'
-            original_file_full_path = os.path.join(root_path, folder, original_file_rel_path)
-            new_file_rel_path = new_file_dot_path.replace('.', os.sep) + '.py'
-            new_file_full_path = os.path.join(root_path, folder, new_file_rel_path)
-            if os.path.exists(new_file_full_path):
-                errors.append('A file with that name already exists')
-
-    if not errors:
-        try:
-            shutil.copyfile(original_file_full_path, new_file_full_path)
-        except:
-            errors.append('There was an error creating the new file')
-
-    if not errors and element_type == 'test':
-        try:
-            original_data_rel_path = original_file_dot_path.replace('.', os.sep) + '.csv'
-            original_data_full_path = os.path.join(root_path, 'data', original_data_rel_path)
-            new_data_rel_path = new_file_dot_path.replace('.', os.sep) + '.csv'
-            new_data_full_path = os.path.join(root_path, 'data', new_data_rel_path)
-            shutil.copyfile(original_data_full_path, new_data_full_path)
-        except:
-            pass
-
-    return errors
+def get_valid_filename(s):
+    """Receives a string and returns a valid filename"""
+    s = str(s).strip().replace(' ', '_')
+    return re.sub(r'(?u)[^-\w.]', '', s)
 
 
-def choose_driver_by_precedence(cli_drivers=None, suite_drivers=None,
-                                settings_default_driver=None):
-    chosen_drivers = []
-    if cli_drivers:
-        chosen_drivers = cli_drivers
-    elif suite_drivers:
-        chosen_drivers = suite_drivers
-    elif settings_default_driver:
-        chosen_drivers = [settings_default_driver]
-    else:
-        chosen_drivers = ['chrome']  # hardcoded default
-    return chosen_drivers
+def prompt_yes_no(question, default=True):
+    """Prompt the user through the console for yes or no"""
+    while True:
+        choice = input(question).lower()
+        if choice in ['yes', 'y']:
+            return True
+        elif choice in ['no', 'n']:
+            return False
+        elif not choice:
+            return default
+
+
+class ImmutableKeysDict(dict):
+    """A dictionary where keys cannot be added after instantiation"""
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            raise AttributeError("cannot add new keys to ImmutableKeysDict")
+        dict.__setitem__(self, key, value)
+
+
+def validate_email(email):
+    """Validate email address"""
+    re_str = r'^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$'
+    match = re.match(re_str, email)
+    return match is not None
+
+
+def normalize_query(path):
+    """Normalize a relative path to a suite or test
+    to a dotted relative path
+    """
+    normalized = os.path.normpath(path)
+    if '.py' in normalized:
+        normalized = os.path.splitext(normalized)[0]
+    if os.sep in normalized:
+        normalized = normalized.replace(os.sep, '.')
+    return normalized

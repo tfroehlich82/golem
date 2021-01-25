@@ -26,9 +26,9 @@ setup(
     version=golem.__version__,
     description='Test automation framework for functional tests using Selenium',
     # long_description=long_description,
-    url='https://github.com/lucianopuccio/golem',
-    author='Luciano Puccio',
-    author_email='me@mail.com',
+    url='https://github.com/golemhq/golem',
+    author='Luciano Renzi',
+    author_email='luciano@lucianorenzi.com',
     license='MIT',
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -45,14 +45,18 @@ setup(
     keywords='test automation framework selenium webdriver',
     packages=find_packages(),
     setup_requires=['setuptools-pep8'],
-    install_requires=['Flask==0.12.2',
-                      'Flask-login==0.4.0',
-                      'selenium==3.6.0',
-                      'requests==2.18.4'
+    install_requires=['Flask>=0.12.2',
+                      'Flask-login>=0.4.0',
+                      'selenium>=3.6.0',
+                      'requests>=2.18.4',
+                      'py-webdriver-manager'
                       ],
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['golem-admin = golem.bin.golem_admin:main']
+        'console_scripts': [
+            'golem-admin = golem.bin.golem_admin:main',
+            'golem = golem.bin.golem_init:main'
+        ]
     },
     cmdclass={'test': PyTest},
     include_package_data=True,

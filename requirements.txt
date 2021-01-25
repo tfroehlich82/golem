@@ -1,7 +1,6 @@
-Flask-Login==0.4.0
-flask==0.12.2
-selenium==3.4.3
+flask
+Flask-Login
+selenium
 pytest
-sphinx
-recommonmark
-requests==2.17.3
+requests
+py-webdriver-manager

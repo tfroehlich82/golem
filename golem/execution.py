@@ -1,24 +1,22 @@
-""" The Execution class contains data specific of a single execution
-that must be shared among other modules such as the test data, the webdriver
-object, etc.
-The instance of Execution is added to sys.modules to simplify the public API.
-"""
-import sys
+""" Stored values specific to a single test execution. """
 
-
-class Execution:
-
-    def __init__(self):
-        self.browser = None
-        self.steps = []
-        self.browser_name = None
-        self.settings = None
-        self.project = None
-        self.workspace = None
-        self.data = None
-        self.report_directory = None
-        self.description = None
-        self.logger = None
-
-
-sys.modules['golem.execution'] = Execution()
+browser = None
+browser_definition = None
+browsers = {}
+steps = []
+data = None
+secrets = None
+description = None
+errors = []
+settings = None
+test_name = None
+test_dirname = None
+test_path = None
+project_name = None
+project_path = None
+testdir = None
+report_directory = None
+logger = None
+timers = {}
+tags = []
+environment = None
